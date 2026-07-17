@@ -1,0 +1,12 @@
+# Tanzu Kafka service instance name in your space
+kafka_service_name: demo-kafka
+
+# Marketplace plan (cf marketplace | grep kafka)
+kafka_plan: small
+
+# Optional org/space overrides for deploy.sh
+# cf_org: my-org
+# cf_space: demo
+
+# Kafka UI cluster display name
+kafka_ui_cluster_name: tanzu-kafka

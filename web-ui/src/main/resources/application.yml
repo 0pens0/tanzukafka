@@ -1,0 +1,27 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: wordcloud-webui
+  thymeleaf:
+    cache: false
+  cloud:
+    stream:
+      bindings:
+        counts-in:
+          destination: counts
+          group: wordcloud-webui
+          contentType: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+words:
+  text:
+    length: 50
+  frame:
+    size: 100

@@ -1,0 +1,20 @@
+spring.cloud.stream.kstream.binder.configuration.commit.interval.ms: 1000
+spring.cloud.stream.kstream.binder.configuration:
+  default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+  default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+
+spring:
+  cloud:
+    stream:
+      bindings:
+        LINES_OUT:
+          destination: lines
+        COUNTS_IN:
+          destination: counts
+          group: wordcount-counts
+
+  application:
+    name: lines-generator
+
+server:
+  port: 8080

@@ -1,0 +1,51 @@
+---
+applications:
+  - name: tanzukafka-ui
+    path: ../web-ui/target/web-ui-1.0.jar
+    memory: 1G
+    instances: 1
+    random-route: true
+    buildpacks:
+      - java_buildpack
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+    services:
+      - ((kafka_service_name))
+
+  - name: tanzukafka-lines
+    path: ../lines-generator/target/lines-generator-1.0.jar
+    memory: 512M
+    instances: 1
+    no-route: true
+    buildpacks:
+      - java_buildpack
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+    services:
+      - ((kafka_service_name))
+
+  - name: tanzukafka-stream
+    path: ../wordcount-stream/target/wordcount-stream-1.0.jar
+    memory: 1G
+    instances: 1
+    no-route: true
+    buildpacks:
+      - java_buildpack
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+    services:
+      - ((kafka_service_name))
+
+  - name: tanzukafka-kafka-ui
+    docker:
+      image: provectuslabs/kafka-ui:latest
+    memory: 1G
+    instances: 1
+    random-route: true
+    env:
+      DYNAMIC_CONFIG_ENABLED: "false"
+      KAFKA_CLUSTERS_0_NAME: ((kafka_ui_cluster_name))
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ((kafka_bootstrap_servers))
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ((kafka_security_protocol))
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: ((kafka_sasl_mechanism))
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: ((kafka_sasl_jaas_config))
