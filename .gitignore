@@ -5,3 +5,10 @@ target/
 *.class
 *.log
 .env
+
+# Local CF homes, agent scratch, staged tile config (contains a kubeconfig)
+.cf-home/
+.cursor/
+.kafka-staged-config.yaml
+scripts/debug-kafka-health.py
+*.pem

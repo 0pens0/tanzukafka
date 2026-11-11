@@ -11,7 +11,8 @@ spring:
         LINES_IN:
           destination: lines
         COUNTS_OUT:
-          destination: counts
+          # Bump when historical aggregates pollute the demo word cloud.
+          destination: counts-v2
 
 
 #      kafka:

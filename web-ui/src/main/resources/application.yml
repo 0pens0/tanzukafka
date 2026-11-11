@@ -10,7 +10,7 @@ spring:
     stream:
       bindings:
         counts-in:
-          destination: counts
+          destination: counts-v2
           group: wordcloud-webui
           contentType: application/json
 

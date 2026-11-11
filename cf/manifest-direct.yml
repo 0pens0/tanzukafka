@@ -1,0 +1,78 @@
+---
+# Direct-connect variant for foundations without a marketplace Kafka broker.
+# Used by `KAFKA_DIRECT=1 ./cf/deploy.sh`; credentials come from TANZU_KAFKA_* in the shell.
+#
+# Binding destinations must be set via SPRING_APPLICATION_JSON: CF/OS env vars with
+# underscores (e.g. BINDINGS_LINES_IN_DESTINATION) are relaxed-bound as nested
+# lines.in and do not match the LINES_IN channel name.
+applications:
+  - name: tanzukafka-ui
+    path: ../web-ui/target/web-ui-1.0.jar
+    memory: 1G
+    instances: 1
+    random-route: true
+    timeout: 180
+    buildpacks:
+      - java_buildpack_offline
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+      SPRING_APPLICATION_JSON: '{"spring.cloud.stream.bindings.counts-in.destination":"((kafka_counts_topic))","spring.cloud.stream.bindings.counts-in.group":"wordcloud-webui","spring.cloud.stream.bindings.counts-in.contentType":"application/json"}'
+      TANZU_KAFKA_BOOTSTRAP_SERVERS: ((kafka_bootstrap_servers))
+      TANZU_KAFKA_USERNAME: ((kafka_username))
+      TANZU_KAFKA_PASSWORD: ((kafka_password))
+      TANZU_KAFKA_SECURITY_PROTOCOL: ((kafka_security_protocol))
+      TANZU_KAFKA_SASL_MECHANISM: ((kafka_sasl_mechanism))
+
+  - name: tanzukafka-lines
+    path: ../lines-generator/target/lines-generator-1.0.jar
+    memory: 1G
+    instances: 1
+    no-route: true
+    buildpacks:
+      - java_buildpack_offline
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+      SPRING_APPLICATION_JSON: '{"spring.cloud.stream.bindings.LINES_OUT.destination":"((kafka_lines_topic))","spring.cloud.stream.bindings.COUNTS_IN.destination":"((kafka_counts_topic))","spring.cloud.stream.bindings.COUNTS_IN.group":"wordcount-counts"}'
+      TANZU_KAFKA_BOOTSTRAP_SERVERS: ((kafka_bootstrap_servers))
+      TANZU_KAFKA_USERNAME: ((kafka_username))
+      TANZU_KAFKA_PASSWORD: ((kafka_password))
+      TANZU_KAFKA_SECURITY_PROTOCOL: ((kafka_security_protocol))
+      TANZU_KAFKA_SASL_MECHANISM: ((kafka_sasl_mechanism))
+
+  - name: tanzukafka-stream
+    path: ../wordcount-stream/target/wordcount-stream-1.0.jar
+    memory: 1G
+    instances: 1
+    no-route: true
+    # Worker: Kafka Streams can block before :8080 binds; port checks crash the app.
+    health-check-type: process
+    timeout: 180
+    buildpacks:
+      - java_buildpack_offline
+    env:
+      JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+      SPRING_APPLICATION_NAME: ((kafka_streams_app_id))
+      SPRING_APPLICATION_JSON: '{"spring.cloud.stream.bindings.LINES_IN.destination":"((kafka_lines_topic))","spring.cloud.stream.bindings.COUNTS_OUT.destination":"((kafka_counts_topic))"}'
+      SPRING_CLOUD_STREAM_KAFKA_STREAMS_BINDER_CONFIGURATION_AUTO_OFFSET_RESET: latest
+      TANZU_KAFKA_BOOTSTRAP_SERVERS: ((kafka_bootstrap_servers))
+      TANZU_KAFKA_USERNAME: ((kafka_username))
+      TANZU_KAFKA_PASSWORD: ((kafka_password))
+      TANZU_KAFKA_SECURITY_PROTOCOL: ((kafka_security_protocol))
+      TANZU_KAFKA_SASL_MECHANISM: ((kafka_sasl_mechanism))
+
+  - name: tanzukafka-kafka-ui
+    lifecycle: docker
+    docker:
+      image: provectuslabs/kafka-ui:latest
+    memory: 1G
+    instances: 1
+    random-route: true
+    env:
+      DYNAMIC_CONFIG_ENABLED: "false"
+      KAFKA_CLUSTERS_0_NAME: ((kafka_ui_cluster_name))
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ((kafka_bootstrap_servers))
+      KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ((kafka_security_protocol))
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: ((kafka_sasl_mechanism))
+      KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: ((kafka_sasl_jaas_config))
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_TYPE: PEM
+      KAFKA_CLUSTERS_0_PROPERTIES_SSL_TRUSTSTORE_CERTIFICATES: ((kafka_ca_pem))

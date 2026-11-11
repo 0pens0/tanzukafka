@@ -5,8 +5,9 @@ applications:
     memory: 1G
     instances: 1
     random-route: true
+    timeout: 180
     buildpacks:
-      - java_buildpack
+      - java_buildpack_offline
     env:
       JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
     services:
@@ -14,11 +15,11 @@ applications:
 
   - name: tanzukafka-lines
     path: ../lines-generator/target/lines-generator-1.0.jar
-    memory: 512M
+    memory: 1G
     instances: 1
     no-route: true
     buildpacks:
-      - java_buildpack
+      - java_buildpack_offline
     env:
       JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
     services:
@@ -29,14 +30,23 @@ applications:
     memory: 1G
     instances: 1
     no-route: true
+    # Worker: Kafka Streams can block before :8080 binds; port checks crash the app.
+    health-check-type: process
+    timeout: 180
     buildpacks:
-      - java_buildpack
+      - java_buildpack_offline
     env:
       JBP_CONFIG_OPEN_JDK_JRE: "{ jre: { version: 11.+ } }"
+      # Fresh streams id avoids multi-million-msg repartition backlog that kills the thread.
+      SPRING_APPLICATION_NAME: ((kafka_streams_app_id))
+      SPRING_CLOUD_STREAM_KSTREAM_BINDER_CONFIGURATION_AUTO_OFFSET_RESET: latest
+      SPRING_CLOUD_STREAM_KSTREAM_BINDER_CONFIGURATION_RETRIES: "10"
+      SPRING_CLOUD_STREAM_KSTREAM_BINDER_CONFIGURATION_DELIVERY_TIMEOUT_MS: "120000"
     services:
       - ((kafka_service_name))
 
   - name: tanzukafka-kafka-ui
+    lifecycle: docker
     docker:
       image: provectuslabs/kafka-ui:latest
     memory: 1G

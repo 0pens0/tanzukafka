@@ -26,7 +26,7 @@ lines-generator  ──►  lines topic  ──►  wordcount-stream  ──► 
 
 ## Prerequisites
 
-- Tanzu Platform with **kafka** in `cf marketplace`
+- Tanzu Platform with **kafka** in `cf marketplace` **or** a reachable Kafka cluster plus credentials for direct mode
 - `cf` CLI, `jq`, Java 8+ for local builds
 - Docker support on the foundation (for Kafka UI app)
 
@@ -50,6 +50,8 @@ Open http://localhost:8084
 
 ## Deploy to Tanzu Platform
 
+### Marketplace Kafka (preferred)
+
 1. Edit `cf/vars.yml` — set `kafka_service_name` and `kafka_plan` for your marketplace.
 2. `cf target` your org/space.
 3. Run:
@@ -65,6 +67,25 @@ chmod +x cf/deploy.sh scripts/build.sh
 - Create the Kafka service instance if missing
 - Read credentials via a service key for Kafka UI env vars
 - `cf push` all four apps from `cf/manifest.yml`
+
+### Direct Kafka (no marketplace broker)
+
+Homelab Strimzi / TCP-routed Kafka without an OSB offering:
+
+```bash
+export KAFKA_DIRECT=1
+export TANZU_KAFKA_BOOTSTRAP_SERVERS='broker.kafka.tcp.example:9092'
+export TANZU_KAFKA_USERNAME='...'
+export TANZU_KAFKA_PASSWORD='...'
+export TANZU_KAFKA_SECURITY_PROTOCOL=SASL_SSL
+export TANZU_KAFKA_SASL_MECHANISM=SCRAM-SHA-512
+# optional: KAFKA_CA_PEM_FILE=/path/to/ca.pem
+./cf/deploy.sh
+```
+
+Uses `cf/manifest-direct.yml` (no `services:` binding). Bump `kafka_streams_app_id` / `kafka_counts_topic` in `cf/vars.yml` to reset word counts.
+
+**Gotcha:** do not set `SPRING_CLOUD_STREAM_BINDINGS_LINES_IN_DESTINATION` via plain CF env — underscores are relaxed-bound as nested `lines.in`. Use `SPRING_APPLICATION_JSON` (as in `manifest-direct.yml`) or keep destinations in `application.yaml` only.
 
 ## What changed from upstream
 

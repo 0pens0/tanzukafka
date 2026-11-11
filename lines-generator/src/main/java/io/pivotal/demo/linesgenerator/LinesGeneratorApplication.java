@@ -1,9 +1,12 @@
 package io.pivotal.demo.linesgenerator;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import io.pivotal.demo.linesgenerator.bindings.CountsSinkBinding;
 import io.pivotal.demo.linesgenerator.bindings.LinesSourceBinding;
@@ -36,6 +39,11 @@ public class LinesGeneratorApplication {
 	@Component
 	@EnableBinding(LinesSourceBinding.class)
 	public static class LinesGenerator implements ApplicationRunner {
+		static final String BLOG_INDEX_URL = "https://spring.io/blog";
+		static final String POST_LINK_SELECTOR = "a[href^=/blog/20]";
+		// spring.io dropped the .blog-post wrapper; post body lives under .markdown.
+		static final String POST_BODY_SELECTOR = ".markdown p";
+
 		private final Logger log = LoggerFactory.getLogger(getClass());
 
 		private final MessageChannel linesOut;
@@ -47,28 +55,26 @@ public class LinesGeneratorApplication {
 		public void run(ApplicationArguments args) {
 
 			Random random = new Random();
-
-			ArrayList<String> urls = new ArrayList<String>();
-			try {
-				Document doc = Jsoup.connect("http://spring.io/blog").get();
-				log.info(doc.title());
-				Elements blogs = doc.select("article a");
-				for (Element blog : blogs) {
-					urls.add(blog.absUrl("href"));
-				}
-			}
-			catch (Exception e){
-				log.error("HTML scraper failed...");
-				log.error(e.getMessage());
-			}
+			List<String> urls = new ArrayList<>();
 
 			Runnable runnable = () -> {
 				try {
-				Document doc = Jsoup.connect(urls.get(random.nextInt(urls.size()-1))).get();
-				Elements paragraphs = doc.select("p");
+				if (urls.isEmpty()) {
+					urls.addAll(fetchPostUrls());
+					if (urls.isEmpty()) {
+						log.warn("No blog posts found at {}", BLOG_INDEX_URL);
+						return;
+					}
+				}
+				Document doc = Jsoup.connect(urls.get(random.nextInt(urls.size()))).get();
+				// Only the post body; site chrome/footer repeats on every page and drowns the cloud.
+				Elements paragraphs = doc.select(POST_BODY_SELECTOR);
 
 				for (Element paragraph : paragraphs) {
-					    String line = Jsoup.parse(paragraph.toString()).text();
+						String line = paragraph.text().trim();
+						if (line.isEmpty() || isSiteChrome(line)) {
+							continue;
+						}
 						Message<String> message = MessageBuilder
 								.withPayload(line)
 								.setHeader(KafkaHeaders.MESSAGE_KEY, line.getBytes())
@@ -82,6 +88,27 @@ public class LinesGeneratorApplication {
 				}
 			};
 			Executors.newScheduledThreadPool(1).scheduleAtFixedRate(runnable, 1, 3, TimeUnit.SECONDS);
+		}
+
+		/** Drop spring.io chrome that sometimes still lands in .markdown. */
+		static boolean isSiteChrome(String line) {
+			String lower = line.toLowerCase();
+			return lower.startsWith("copyright")
+					|| lower.startsWith("stay connected with the spring newsletter")
+					|| lower.equals("subscribe")
+					|| lower.startsWith("vmware offers training")
+					|| lower.startsWith("truesource spring enterprise")
+					|| lower.startsWith("check out all the upcoming events")
+					|| lower.contains("are trademarks or registered trademarks");
+		}
+
+		private List<String> fetchPostUrls() throws IOException {
+			Document index = Jsoup.connect(BLOG_INDEX_URL).get();
+			log.info(index.title());
+			return index.select(POST_LINK_SELECTOR).stream()
+					.map(link -> link.absUrl("href"))
+					.distinct()
+					.collect(Collectors.toList());
 		}
 
 	}

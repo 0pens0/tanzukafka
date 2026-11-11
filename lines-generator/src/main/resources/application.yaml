@@ -10,7 +10,7 @@ spring:
         LINES_OUT:
           destination: lines
         COUNTS_IN:
-          destination: counts
+          destination: counts-v2
           group: wordcount-counts
 
   application:

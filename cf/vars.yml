@@ -10,3 +10,10 @@ kafka_plan: small
 
 # Kafka UI cluster display name
 kafka_ui_cluster_name: tanzu-kafka
+
+# Kafka Streams application.id; bump it to start the word counts from zero
+kafka_streams_app_id: wordcount-v5
+
+# Topic names (bump counts topic to drop polluted historical aggregates)
+kafka_lines_topic: lines
+kafka_counts_topic: counts-v2
